@@ -47,6 +47,7 @@ const run = async () => {
     const usersCollection = dataBase.collection("users");
     const allCompaniesCollection = dataBase.collection("allCompanies");
     const reviewsCollection = dataBase.collection("reviews");
+    const employeesCollection = dataBase.collection("employees");
 
     // For register new user
     app.post("/signup", async (req, res) => {
@@ -97,13 +98,13 @@ const run = async () => {
       }
     });
 
+    // Start company API method
     app.get("/companies", async (req, res) => {
       const cursor = allCompaniesCollection.find({});
       const companies = await cursor.toArray();
 
       res.send({ status: true, data: companies });
     });
-
     app.get("/company/:id", async (req, res) => {
       const id = req.params.id;
       const company = await allCompaniesCollection.findOne({
@@ -111,7 +112,6 @@ const run = async () => {
       });
       res.send({ status: true, data: company });
     });
-
     app.post("/add-company", async (req, res) => {
       req.body.registrationDate = new Date();
       const company = req.body;
@@ -127,7 +127,6 @@ const run = async () => {
         res.status(409).send({ message: "This company is already registered" });
       }
     });
-
     app.put("/company", async (req, res) => {
       const { _id, title, email, address, registrationDate, image } = req.body;
       const result = await allCompaniesCollection.updateOne(
@@ -138,7 +137,6 @@ const run = async () => {
 
       res.send(result);
     });
-
     app.delete("/company/:id", async (req, res) => {
       const id = req.params.id;
       const result = await allCompaniesCollection.deleteOne({
@@ -148,6 +146,52 @@ const run = async () => {
       res.send(result);
     });
 
+    // Start employee API method
+    app.get("/employees/:id", async (req, res) => {
+      const id = req.params.id;
+      const employees = await employeesCollection
+        .find({
+          assignedCompanyId: id,
+        })
+        .toArray();
+      res.send(employees);
+    });
+    app.post("/employee", async (req, res) => {
+      const employee = req.body;
+
+      const isExist = await employeesCollection
+        .find({ $or: [{ email: req.body.email }, { mobile: req.body.mobile }] })
+        .toArray();
+
+      if (isExist.length === 0) {
+        const result = await employeesCollection.insertOne(employee);
+        res.send(result);
+      } else {
+        res.status(409).send({
+          message: "Employee with this mobile or email is already registered",
+        });
+      }
+    });
+    app.put("/employee", async (req, res) => {
+      const { _id, name, email, address, assignedCompanyId, image } = req.body;
+      const result = await employeesCollection.updateOne(
+        { _id: new ObjectId(_id) },
+        { $set: { name, email, address, assignedCompanyId, image } },
+        { upsert: true }
+      );
+
+      res.send(result);
+    });
+    app.delete("/employee/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await employeesCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+
+      res.send(result);
+    });
+
+    // Start review API method
     app.get("/reviews/:id", async (req, res) => {
       const id = req.params.id;
       const reviews = await reviewsCollection.find({ companyId: id }).toArray();
